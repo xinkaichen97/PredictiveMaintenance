@@ -10,7 +10,7 @@ app = Flask(__name__)
 tasks_list = dict()
 
 
-# WILL ADD PROGRAM NAME
+# run the program according to the program name and possibly the task ID
 class Run(Thread):
     def __init__(self, id, name, param1, param2):
         Thread.__init__(self)
@@ -61,16 +61,21 @@ class Run(Thread):
 
 @app.route('/', methods=['GET'])
 def hello():
-    return make_response('You are now connected to the API.<br>' + \
-                         'Below are some commands you can try:<br>' + \
-                         '/run?program=name&amp;(id=id&amp;param1=p1&amp;param2=p2): start a task<br>'
-                         '&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp Program name is mandatory (PPM1, PPM2, CRM1, CRM2), '
-                         'six-digit task ID and other parameters are optional <br>' + \
-                         # '/run/task-id: start/restart a task using a specific task ID<br>' + \
-                         '/tasks: view all the tasks<br>' + \
-                         '/tasks/task-id: view the task status using a specific task ID<br>' + \
-                         '/clear: clear all completed or aborted tasks<br>' + \
-                         '/clear/task-id: clear the completed or aborted task with a specific task ID<br>')
+    indent = '&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp '
+    response = '<h2>Welcome</h2>' + \
+               'You are now connected to the API.<br>' + \
+               '<b>PLEASE READ</b>: Below are some commands you can use:<br>' + \
+               '/run?program=program-name[&amp;id=task-id][&amp;param1=p1][&amp;param2=p2][&amp;startDate=date1]: start a task<br>' + \
+               indent + 'Program name: mandatory, options are: PPM1, PPM2, CRM1, CRM2<br>' + \
+               indent + 'Task ID: optional, six-digit<br>' + \
+               indent + 'Parameter1: optional, details TBD<br>' + \
+               indent + 'Parameter2: optional, details TBD<br>' + \
+               indent + 'Start Date: optional, format: dd-mmm-yy (e.g. 01-AUG-20)<br>' + \
+               '/tasks: view all the tasks<br>' + \
+               '/tasks/task-id: view the task status using a specific task ID<br>' + \
+               '/clear: clear all completed or aborted tasks<br>' + \
+               '/clear/task-id: clear the completed or aborted task with a specific task ID<br>'
+    return make_response(response)
 
 
 # CHOOSE PROGRAM NAME (MANDATORY, STRING OR NUM), TASK ID (OPTIONAL) AND OTHER PARAMS (OPTIONAL)
@@ -80,8 +85,13 @@ def invoke_program_with_params():
     program_name = request.args.get('program')
     if program_name is None:
         return make_response('Program name is mandatory!')
-    elif program_name not in ['PPM1', 'PPM2', 'CRM1', 'CRM2']:
-        return make_response(program_name + ' is not a valid program name. Please try again.')
+    else:
+        program_name = program_name.replace('\"', '')
+        program_name = program_name.replace('\'', '')
+        program_name = program_name.upper()
+    if program_name not in ['PPM1', 'PPM2', 'CRM1', 'CRM2']:
+        return make_response(program_name + ' is not a valid program name. Please try again.<br>'
+                                            'Supported programs are: PPM1, PPM2, CRM1, and CRM2.')
     # task ID
     random_id = random.randint(100000, 999999)
     while random_id in tasks_list.keys():
@@ -101,6 +111,13 @@ def invoke_program_with_params():
     # other parameters (TBD)
     param1 = request.args.get('param1')
     param2 = request.args.get('param2')
+    start_date_str = request.args.get('startDate')
+    if start_date_str is not None:
+        try:
+            start_date = datetime.strptime(start_date_str, '%d-%b-%y')
+        except ValueError:
+            return make_response('Date format not supported. Please use dd-mmm-yy as in 01-AUG-20.')
+        print(start_date, flush=True)
     utc_time = datetime.utcnow()
     thread = Run(id=task_id, name=program_name, param1=param1, param2=param2)
     thread.start()
@@ -123,30 +140,32 @@ def invoke_program_with_params():
 #     return make_response(jsonify({'ID': id, 'Status': status, 'Timestamp': utc_time}), 200)
 
 
-@app.route('/run/<int:task_id>', methods=['GET'])
-def invoke_program_with_id(task_id):
-    if task_id in tasks_list.keys():
-        current_status = tasks_list[task_id]['Status']
-        if current_status == 'In Progress':
-            return make_response('Task ' + str(task_id) + ' is still in progress, please wait', 403)
-        print('Task ' + str(task_id) + ' status: ' + current_status + ', restarting...')
-    else:
-        print('Generating new ID:' + str(task_id), flush=True)
-        print('Task ' + str(task_id) + ' started', flush=True)
-    status = 'Started'
-    utc_time = datetime.utcnow()
-    thread = Run(id=task_id, name='PPM')
-    thread.start()
+# @app.route('/run/<int:task_id>', methods=['GET'])
+# def invoke_program_with_id(task_id):
+#     if task_id in tasks_list.keys():
+#         current_status = tasks_list[task_id]['Status']
+#         if current_status == 'In Progress':
+#             return make_response('Task ' + str(task_id) + ' is still in progress, please wait', 403)
+#         print('Task ' + str(task_id) + ' status: ' + current_status + ', restarting...')
+#     else:
+#         print('Generating new ID:' + str(task_id), flush=True)
+#         print('Task ' + str(task_id) + ' started', flush=True)
+#     status = 'Started'
+#     utc_time = datetime.utcnow()
+#     thread = Run(id=task_id, name='PPM')
+#     thread.start()
 
-    return make_response(jsonify({'ID': task_id, 'Status': status, 'Timestamp': utc_time}), 200)
+#     return make_response(jsonify({'ID': task_id, 'Status': status, 'Timestamp': utc_time}), 200)
 
 
 @app.route('/tasks/<int:task_id>', methods=['GET'])
 def get_task_status(task_id):
+    task_id = str(task_id)
     if task_id in tasks_list.keys():
         status = tasks_list[task_id]['Status']
+        program_name = tasks_list[task_id]['Program']
         utc_time = datetime.utcnow()
-        return make_response(jsonify({'ID': task_id, 'Status': status, 'Timestamp': utc_time}), 200)
+        return make_response(jsonify({'ID': task_id, 'Program': program_name, 'Status': status, 'Timestamp': utc_time}), 200)
     else:
         return make_response('Task ' + str(task_id) + ' not found', 404)
 
