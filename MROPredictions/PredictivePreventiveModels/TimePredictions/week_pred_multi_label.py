@@ -4,7 +4,31 @@ import numpy as np
 import csv
 import re
 from collections import Counter
-from train_classification import get_dict, get_mapped_df
+
+
+def get_dict(lst):
+    dic = {item: i for i, item in enumerate(lst)}
+    return dic
+
+
+def get_mapped_df(df, org_dict, item_dict, activity_dict, asset_dict):
+    # orgs
+    orgs = list(df['ORGANIZATION_CODE'])
+    mapped_orgs = [org_dict[org] for org in orgs]
+    df['ORGANIZATION_CODE'] = mapped_orgs
+    # items
+    items = list(df['ITEM'])
+    mapped_items = [item_dict[str(item)] for item in items]
+    df['ITEM'] = mapped_items
+    # activities
+    activities = list(df['ACTIVITY_ITEM'])
+    mapped_activities = [activity_dict[activity] for activity in activities]
+    df['ACTIVITY_ITEM'] = mapped_activities
+    # assets
+    assets = list(df['ASSET_NUMBER'])
+    mapped_assets = [asset_dict[asset] for asset in assets]
+    df['ASSET_NUMBER'] = mapped_assets
+    return df
 
 
 def get_error(pred, raw_data, labels, model, output_file):
@@ -151,31 +175,6 @@ if __name__ == '__main__':
     train_data = train_data[train_data['ACTIVITY_COUNT'] >= 20]
     test_data = pd.read_csv('TRX_ACTIVITY_15_19_FLO.csv')
     test_data = test_data[test_data['YEAR'] == 2019]
-    # activity = list(total_data['ACTIVITY_ITEM'])
-    # cycles = []
-    # count = 0
-    # for a in activity:
-    #     words = a.split('-')
-    #     if len(words) <= 2:
-    #         words = a.split(' ')
-    #     found = False
-    #     for word in reversed(words):
-    #         if re.search('^[0-9]+\s?[A-Z]+', word) \
-    #                 or word in ['SEMIANNUAL', 'SEMIANNUALLY', 'MONTH', 'BI ANNUAL', 'ANNUALLY', 'MONTHLY', 'WEEKLY', 'OPMONTHLY', 'YEARLY']:
-    #         # if any(ch.isdigit() for ch in word) and (('HR' in word) or ('D' in word) or ):
-    #             cycles.append(word)
-    #             found = True
-    #             break
-    #     if not found:
-    #         cycles.append('N/A')
-    #         count += 1
-    # print(cycles)
-    # print(count, len(cycles))
-    # total_data['CYCLE'] = cycles
-    # total_data.to_csv('TRX_ACTIVITY_15_19_2.csv')
-    # assert 1 == 0
-
-    # train_data = total_data[total_data['YEAR'] < 2019]
 
     test_data_with_zeros = pd.read_csv('TRX_19_ALL_WEEKS.csv')
     test_data_with_zeros = test_data_with_zeros[test_data_with_zeros['ORGANIZATION_CODE'] == org]
@@ -236,7 +235,6 @@ if __name__ == '__main__':
 
     model = tf.keras.Sequential([
         tf.keras.layers.Dense(300, input_dim=train_x.shape[1], activation='relu'),
-        # tf.keras.layers.Dense(3000, input_dim=train_x.shape[1], activation='relu'),
         tf.keras.layers.Dense(53, activation='sigmoid')
     ])
     # model = tf.keras.models.load_model('model_classification_nonzero_flo.h5')
@@ -248,15 +246,11 @@ if __name__ == '__main__':
     model.fit(train_x, train_y, epochs=1)
     # model.save('model_classification_nonzero_flo.h5')
     preds_train = model.predict(train_x)
-    # preds_test = model.predict(test_x)
-    # print(preds_train[0, :])
-    # print(np.amax(preds_train, axis=1))
-    # print(preds_test)
-    # print(np.amax(preds_test, axis=1))
+    preds_test = model.predict(test_x)
     pred_train = get_predictions(train_x, model, train_weeks, train_counts, train_cycles)
     # get_predictions(test_x, model, test_weeks)
     pred_test_wz = get_predictions(test_x_wz, model, test_weeks_with_zeros, test_counts_wz,
                                    test_cycles_wz, labels_with_zeros)
 
-    # get_error(train_x, train_raw, labels_with_zeros, model, 'train_metric_classification_flo.csv')
+    get_error(train_x, train_raw, labels_with_zeros, model, 'train_metric_classification_flo.csv')
     get_error(pred_test_wz, test_raw_wz, labels_with_zeros, model, 'test_metric_classification_flo.csv')
