@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from train_PPM import get_dict, get_mapped_df
 
 
 def get_dict(lst):
