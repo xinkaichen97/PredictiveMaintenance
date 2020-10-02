@@ -4,6 +4,31 @@ import tensorflow as tf
 from train_PPM import get_dict, get_mapped_df
 
 
+def get_dict(lst):
+    dic = {item: i for i, item in enumerate(lst)}
+    return dic
+
+
+def get_mapped_df(df, org_dict, item_dict, activity_dict, asset_dict):
+    # orgs
+    orgs = list(df['ORGANIZATION_CODE'])
+    mapped_orgs = [org_dict[org] for org in orgs]
+    df['ORGANIZATION_CODE'] = mapped_orgs
+    # items
+    items = list(df['ITEM'])
+    mapped_items = [item_dict[item] for item in items]
+    df['ITEM'] = mapped_items
+    # activities
+    activities = list(df['ACTIVITY_ITEM'])
+    mapped_activities = [activity_dict[activity] for activity in activities]
+    df['ACTIVITY_ITEM'] = mapped_activities
+    # assets
+    assets = list(df['ASSET_NUMBER'])
+    mapped_assets = [asset_dict[asset] for asset in assets]
+    df['ASSET_NUMBER'] = mapped_assets
+    return df
+
+
 def get_input_data(data, org_dict, item_dict, asset_dict):
     data = data[['ORGANIZATION_CODE', 'ITEM', 'ACTIVITY_ITEM', 'ASSET_NUMBER', 'WEEK',
                  'TRANSACTION_QUANTITY']]
